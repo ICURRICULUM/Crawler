@@ -51,50 +51,55 @@ function createCurriculumData(results) {
     results.forEach((entry, index) => {
         const YearCurriculumList = {
             year: '',
-            "필수_이수학점": { // 총이수학점이 없으면 130 -> 변경
-
-            },
-            "교과과정": {
-                "전공필수": [],
-                "교양필수": [],
-                "전공선택": []
-            },
-            "핵심교양": {
-                "영역지정여부": false,
-                "요구학점": 0,
-                "필수영역": [],
-                "지정과목": {
-                    "핵심교양1": [],
-                    "핵심교양2": [],
-                    "핵심교양3": [],
-                    "핵심교양4": [],
-                    "핵심교양5": [],
-                    "핵심교양6": []
+            "alternativeCourseJson": {
+                "alternativeCourseMap": {
+                   
                 }
             },
-            "SW_AI": {
+            "requiredCreditJson": { // 총이수학점이 없으면 130 -> 변경
+
+            },
+            "curriculumCodesJson":{
+                "교과과정": {
+                    "전공필수": [],
+                    "교양필수": [],
+                    "전공선택": []
+                }      
+            }
+            ,
+            "coreJson": {
+                "영역_지정여부": false,
+                "요구학점": 0,
+                "필수영역": [],
+                "영역별_지정과목": {
+                },
+                "영역별_대체과목":{
+                }
+            },
+            "swAiJson": {
                 "과목_지정여부": false,
                 "지정과목": [],
+                "대체과목": [],
                 "학점": 0
             },
-            "창의": {
+            "creativityJson": {
                 "과목_지정여부": false,
                 "지정과목": [],
                 "학점": 0
             }
         };
-        YearCurriculumList.필수_이수학점 = entry.course.필수이수학점;
+        YearCurriculumList.requiredCreditJson = entry.course.필수이수학점;
         YearCurriculumList.year = entry.year;
         entry.course.교육과정.forEach((item) => {
             if (item.영역 === '전공선택') {
-                YearCurriculumList.교과과정.전공선택.push({ "과목명": item.교과목명, "학수번호": item.학수번호 });
+                YearCurriculumList.curriculumCodesJson.교과과정.전공선택.push(item.학수번호);
             } else if (item.영역 === '전공필수') {
-                YearCurriculumList.교과과정.전공필수.push({ "과목명": item.교과목명, "학수번호": item.학수번호 });
+                YearCurriculumList.curriculumCodesJson.교과과정.전공필수.push(item.학수번호);
             } else if (item.영역 === '교양필수') {
                 if(item.교과목명.includes("핵심교양-")){
-                    YearCurriculumList.핵심교양.필수영역.push(extractNumber(item.교과목명));
+                    YearCurriculumList.coreJson.필수영역.push(extractNumber(item.교과목명));
                 }else{
-                    YearCurriculumList.교과과정.교양필수.push({ "과목명": item.교과목명, "학수번호": item.학수번호 });
+                    YearCurriculumList.curriculumCodesJson.교과과정.교양필수.push(item.학수번호 );
                 }
             }
             console.log(item);
