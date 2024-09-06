@@ -1,179 +1,53 @@
-const axios = require("axios");
-const cheerio = require("cheerio");
+const { getData } = require('./lib/getData');
+const { createCurriculumData } = require('./bin/utils/util');
 
+// aws 람다 핸들러 작성, 핸들러 부분이 호출.
 
-const curri_field = ["영역", "", "과목영역", "학수번호", "교과목명", "학점", "이수시기", "비고"];
-const credit_field = ["총이수", "단일전공", "복수연계융합전공", "부전공"];
+/**
+  departmentName 
+  joinYear
+ */
 
+exports.handler = async (event) => {
+    try {
+        const deptName = event.queryStringParameters.departmentName;
+        const year = event.queryStringParameters.joinYear;
 
-// 해당 과의 해당 학년에 들어갔을때의 데이터
-const getHtml = async (url) => {
-  try {
-    const html = await axios.get(`https://sugang.inha.ac.kr/sugang/SU_51001/${url}`);
-    const $ = cheerio.load(html.data);
-    const testData = {
-      "필수이수학점": {},
-      "교육과정": []
-    };
-    const tableCredit = $(`table[summary="조회목록"]`); // 전공이수학점을 가져온다
-    tableCredit.find('tbody').each((index, element) => {
-      const data = {
-        "총이수": 130,
-        "단일전공": parseInt($(element).find('#lblJunCredit').text().trim(),10),
-        "복수_연계_융합_전공": parseInt($(element).find('#lblPl1Credit').text().trim(),10),
-        "부전공": parseInt($(element).find('#lblSub11Credit').text().trim(),10)
-      }
-      testData.필수이수학점=data;
-    });
-
-    const table1 = $('#gvCurriculum'); // 교과과정테이블 가져옴
-   
-    table1.find('tr').each((index, element) => {
-      const data = {};
-      $(element).find('.Left').each((i, td) => {
-        data[`${curri_field[i]}`] = $(td).text().trim();
-      });
-      if (Object.keys(data).length > 0) {
-        testData.교육과정.push(data);
-      }
-    });
-
-    
-    return testData;
-  } catch (error) {
-    console.error(error);
-    return [];
-  }
-};
-
-// 결과를 저장할 배열
-const results = [];
-
-
-//원하는 년도 학과가 입력되었을때 값을 가져오기
-const getData = async (deptName,year) => {
-  try {
-    const response = await axios.post('https://sugang.inha.ac.kr/sugang/SU_51001/curriculum_all.aspx');
-    var $ = cheerio.load(response.data);
-
-    // 숨겨진 필드 값 추출
-    const viewState = $('#__VIEWSTATE').val();
-    const eventValidation = $('#__EVENTVALIDATION').val();
-    const viewStateGenerator = $('#__VIEWSTATEGENERATOR').val();
-
-    console.log(year);
-
-    
-      const formData = new URLSearchParams();
-      formData.append('__EVENTTARGET', 'ddlYear');
-      formData.append('__EVENTARGUMENT', '');
-      formData.append('__VIEWSTATE', viewState);
-      formData.append('__EVENTVALIDATION', eventValidation);
-      formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
-      formData.append('ddlYear', year.toString());
-
-      const postResponse = await axios.post('https://sugang.inha.ac.kr/sugang/SU_51001/curriculum_all.aspx', formData);
-      var $ = cheerio.load(postResponse.data);
-      const table1 = $('#gvList');
-
-      // 각 연도별로 데이터를 수집하고 결과를 results 배열에 추가합니다.
-      const yearResults = [];
-      const promises = [];
-
-      table1.find('tbody tr').each((index, element) => {
-        const $row = $(element);
-        const findValue = `td:contains(${deptName})`
-        const $departmentTd = $row.find(findValue);
-
-        if ($departmentTd.length > 0) {
-          const curriculumUrl = $row.find('a').first().attr('href');
-          const promise = getHtml(curriculumUrl).then(result => {
-            yearResults.push({ year: year, course: result });
-          });
-          promises.push(promise);
+        if (!deptName || !year) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: '학과와 년도를 입력해주세요.' }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Headers': 'Content-Type', // 허용할 헤더
+                },
+            };
         }
-      });
 
-      // 모든 행에 대한 처리가 완료될 때까지 기다린 후 yearResults를 results에 추가합니다.
-      await Promise.all(promises);
-      results.push(...yearResults);
-    
+        // 데이터 가져오기 및 가공
+        const results = await getData(deptName, year);
+        
+        // 원하는 데이터로 폼 수정
+        const resultData = createCurriculumData(results);
 
-    return results;
-
-  } catch (err) {
-    console.error(err);
-    return [];
-  }
+        return {
+            statusCode: 200,
+            body: JSON.stringify(resultData),
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                
+            },
+        };
+    } catch (error) {
+        console.error('크롤링 중 오류가 발생하였습니다:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: '서버 오류가 발생했습니다.' }),
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': 'Content-Type',
+            },
+        };
+    }
 };
-
-
-
-
-// 학과,년도 별로의 교과과정 url 가져오기
-// const getData = async (deptName) => {
-//   try {
-//     const response = await axios.post('https://sugang.inha.ac.kr/sugang/SU_51001/curriculum_all.aspx');
-//     var $ = cheerio.load(response.data);
-
-//     // 숨겨진 필드 값 추출
-//     const viewState = $('#__VIEWSTATE').val();
-//     const eventValidation = $('#__EVENTVALIDATION').val();
-//     const viewStateGenerator = $('#__VIEWSTATEGENERATOR').val();
-
-//     // 2018~2024까지의 값을 가져오기
-//     const years = [2018, 2019, 2020, 2021, 2022, 2023, 2024];
-
-//     for (let year of years) {
-//       const formData = new URLSearchParams();
-//       formData.append('__EVENTTARGET', 'ddlYear');
-//       formData.append('__EVENTARGUMENT', '');
-//       formData.append('__VIEWSTATE', viewState);
-//       formData.append('__EVENTVALIDATION', eventValidation);
-//       formData.append('__VIEWSTATEGENERATOR', viewStateGenerator);
-//       formData.append('ddlYear', year.toString());
-
-//       const postResponse = await axios.post('https://sugang.inha.ac.kr/sugang/SU_51001/curriculum_all.aspx', formData);
-//       var $ = cheerio.load(postResponse.data);
-//       const table1 = $('#gvList');
-
-//       // 각 연도별로 데이터를 수집하고 결과를 results 배열에 추가합니다.
-//       const yearResults = [];
-//       const promises = [];
-
-//       table1.find('tbody tr').each((index, element) => {
-//         const $row = $(element);
-//         const findValue = `td:contains(${deptName})`
-//         const $departmentTd = $row.find(findValue);
-
-//         if ($departmentTd.length > 0) {
-//           const curriculumUrl = $row.find('a').first().attr('href');
-//           const promise = getHtml(curriculumUrl).then(result => {
-//             yearResults.push({ year: year, course: result });
-//           });
-//           promises.push(promise);
-//         }
-//       });
-
-//       // 모든 행에 대한 처리가 완료될 때까지 기다린 후 yearResults를 results에 추가합니다.
-//       await Promise.all(promises);
-//       results.push(...yearResults);
-//     }
-
-//     return results;
-
-//   } catch (err) {
-//     console.error(err);
-//     return [];
-//   }
-// };
-
-
-
-
-
-
-module.exports = {
-  getData: getData
-}
-
