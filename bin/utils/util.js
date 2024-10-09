@@ -9,49 +9,55 @@ function createCurriculumData(results) {
 
     results.forEach((entry) => {
         const YearCurriculum = {
-            "alternativeCourseJson": {
-                "alternativeCourseMap": {}
+            "alternativeCourse": {
+                "대체과목코드": {}
             },
-            "requiredCreditJson": {},
-            "curriculumCodesJson": {
-                "교과과정": {
-                    "전공필수": [],
-                    "교양필수": [],
-                    "전공선택": []
-                }
+            "requiredCredit": {},
+            "generalRequired": {
+                "과목코드":[],
+                "추가정보":{}
             },
-            "coreJson": {
+            "majorRequired": {
+                "과목코드":[],
+                "추가정보":{}
+            },
+            "majorSelect": {
+                "과목코드":[],
+                "추가정보":{}
+            },
+            "core": {
                 "영역_지정여부": false,
                 "요구학점": 0,
                 "필수영역": [],
                 "영역별_지정과목": {},
-                "영역별_대체과목": {}
+                "영역별_대체과목": {},
+                "추가정보":{}
             },
-            "swAiJson": {
-                "과목_지정여부": false,
-                "지정과목": [],
-                "대체과목": [],
-                "요구학점": 0
+            "swAi": {
+                "영역대체과목":[],
+                "인정과목": [],
+                "필요학점": 0,
+                "추가정보":{}
             },
-            "creativityJson": {
-                "과목_지정여부": false,
-                "지정과목": [],
-                "요구학점": 0
+            "creativity": {
+                "인정과목": [],
+                "요구학점": 0,
+                "추가정보": {}
             }
         };
 
-        YearCurriculum.requiredCreditJson = entry.course.필수이수학점;
+        YearCurriculum.requiredCredit = entry.course.필수이수학점;
 
         entry.course.교육과정.forEach((item) => {
             if (item.영역 === '전공선택') {
-                YearCurriculum.curriculumCodesJson.교과과정.전공선택.push(item.학수번호);
+                YearCurriculum.majorSelect.과목코드.push(item.학수번호);
             } else if (item.영역 === '전공필수') {
-                YearCurriculum.curriculumCodesJson.교과과정.전공필수.push(item.학수번호);
+                YearCurriculum.majorRequired.과목코드.push(item.학수번호);
             } else if (item.영역 === '교양필수') {
                 if (item.교과목명.includes("핵심교양-")) {
-                    YearCurriculum.coreJson.필수영역.push(extractNumber(item.교과목명));
+                    YearCurriculum.core.필수영역.push(extractNumber(item.교과목명));
                 } else {
-                    YearCurriculum.curriculumCodesJson.교과과정.교양필수.push(item.학수번호);
+                    YearCurriculum.generalRequired.과목코드.push(item.학수번호);
                 }
             }
         });
